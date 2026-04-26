@@ -1,24 +1,33 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import os
+import re
 import tempfile
+import unicodedata
+import wave
 from pathlib import Path
+
+try:
+    import audioop  # Disponible en Python 3.11; permite medir energía RMS del audio WAV.
+except Exception:  # pragma: no cover
+    audioop = None
 
 import streamlit as st
 
 # -----------------------------------------------------------------------------
 # Configuración inicial
 # -----------------------------------------------------------------------------
-# Versión corregida: evita modificar st.session_state de widgets ya instanciados.
-# Permite leer OPENAI_API_KEY y LLM_MODEL desde Streamlit Cloud secrets.
+# Permite leer variables desde Streamlit Cloud secrets.
 try:
     if "OPENAI_API_KEY" in st.secrets and not os.getenv("OPENAI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
     if "LLM_MODEL" in st.secrets:
         os.environ["LLM_MODEL"] = st.secrets["LLM_MODEL"]
+    if "TRANSCRIPTION_MODEL" in st.secrets:
+        os.environ["TRANSCRIPTION_MODEL"] = st.secrets["TRANSCRIPTION_MODEL"]
 except Exception:
-    # En ejecución local puede no existir st.secrets o no tener estas claves.
     pass
 
 from src.config import LLM_MODEL, RAG_STORE_DIR, USE_MCP_SERVER
@@ -34,6 +43,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# -----------------------------------------------------------------------------
+# Parámetros de audio
+# -----------------------------------------------------------------------------
+MIN_AUDIO_DURATION_SECONDS = 1.0
+MIN_AUDIO_RMS_RATIO = 0.0015
+TRANSCRIPTION_MODEL = os.getenv("TRANSCRIPTION_MODEL", "whisper-1")
+
+SPURIOUS_TRANSCRIPT_PATTERNS = [
+    "subtitulos realizados por la comunidad de amara.org",
+    "subtítulos realizados por la comunidad de amara.org",
+    "subtitulado por la comunidad de amara.org",
+    "amara.org",
+    "gracias por ver el video",
+    "gracias por ver",
+]
 
 # -----------------------------------------------------------------------------
 # Estilos visuales
@@ -63,12 +87,6 @@ st.markdown(
             opacity: 0.82;
             font-size: 1rem;
         }
-        .metric-card {
-            padding: 0.9rem 1rem;
-            border: 1px solid rgba(120, 120, 120, 0.20);
-            border-radius: 0.9rem;
-            background: rgba(250, 250, 250, 0.04);
-        }
         .soft-note {
             padding: 0.8rem 1rem;
             border-left: 4px solid rgba(52, 211, 153, 0.80);
@@ -76,8 +94,12 @@ st.markdown(
             background: rgba(52, 211, 153, 0.08);
             margin: 0.5rem 0 1rem;
         }
-        div[data-testid="stSidebar"] h2, div[data-testid="stSidebar"] h3 {
-            letter-spacing: -0.02em;
+        .warning-note {
+            padding: 0.8rem 1rem;
+            border-left: 4px solid rgba(245, 158, 11, 0.90);
+            border-radius: 0.7rem;
+            background: rgba(245, 158, 11, 0.08);
+            margin: 0.5rem 0 1rem;
         }
         .stButton>button {
             border-radius: 0.7rem;
@@ -91,9 +113,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 # -----------------------------------------------------------------------------
-# Utilidades
+# Utilidades de audio y transcripción
 # -----------------------------------------------------------------------------
 def _audio_to_bytes(audio_value) -> bytes:
     """Convierte el valor de st.audio_input a bytes sin depender del cursor interno."""
@@ -105,14 +126,7 @@ def _audio_to_bytes(audio_value) -> bytes:
 
 
 def capturar_audio_microfono(*, label: str, key: str, help_text: str = ""):
-    """
-    Captura audio desde el micrófono del navegador de forma compatible
-    con varias versiones de Streamlit.
-
-    - Streamlit reciente: st.audio_input(..., sample_rate=16000)
-    - Streamlit 1.39.x: st.experimental_audio_input(...)
-    - Versiones antiguas: muestra mensaje accionable sin romper la app
-    """
+    """Captura audio del micrófono con compatibilidad entre versiones de Streamlit."""
     if hasattr(st, "audio_input"):
         return st.audio_input(
             label,
@@ -139,8 +153,97 @@ def capturar_audio_microfono(*, label: str, key: str, help_text: str = ""):
     return None
 
 
+def _normalizar_texto_validacion(texto: str) -> str:
+    texto = texto.strip().lower()
+    texto = "".join(
+        c for c in unicodedata.normalize("NFKD", texto)
+        if not unicodedata.combining(c)
+    )
+    texto = re.sub(r"\s+", " ", texto)
+    return texto
+
+
+def es_transcripcion_espuria(texto: str) -> bool:
+    """Detecta frases típicas alucinadas por transcriptores cuando hay silencio."""
+    if not texto or not texto.strip():
+        return True
+    texto_norm = _normalizar_texto_validacion(texto)
+    patrones_norm = [_normalizar_texto_validacion(p) for p in SPURIOUS_TRANSCRIPT_PATTERNS]
+    return any(p in texto_norm for p in patrones_norm)
+
+
+def analizar_audio_wav(audio_bytes: bytes) -> dict:
+    """Calcula duración y energía RMS de un WAV grabado desde el navegador."""
+    info = {
+        "is_wav": False,
+        "duration_seconds": None,
+        "sample_rate": None,
+        "channels": None,
+        "sample_width": None,
+        "rms_ratio": None,
+    }
+    if not audio_bytes:
+        return info
+
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
+            channels = wav_file.getnchannels()
+            sample_width = wav_file.getsampwidth()
+            sample_rate = wav_file.getframerate()
+            n_frames = wav_file.getnframes()
+            frames = wav_file.readframes(n_frames)
+
+        duration = n_frames / float(sample_rate) if sample_rate else 0.0
+        rms_ratio = None
+        if audioop is not None and frames and sample_width:
+            rms = audioop.rms(frames, sample_width)
+            max_amplitude = float(2 ** (8 * sample_width - 1))
+            rms_ratio = rms / max_amplitude if max_amplitude else None
+
+        info.update(
+            {
+                "is_wav": True,
+                "duration_seconds": duration,
+                "sample_rate": sample_rate,
+                "channels": channels,
+                "sample_width": sample_width,
+                "rms_ratio": rms_ratio,
+            }
+        )
+        return info
+    except Exception:
+        return info
+
+
+def validar_audio_para_transcripcion(audio_bytes: bytes) -> tuple[bool, str, dict]:
+    """Valida duración y volumen mínimo para evitar transcribir silencio."""
+    if not audio_bytes or len(audio_bytes) < 1500:
+        return False, "No se detectó audio suficiente. Graba de nuevo hablando cerca del micrófono.", {}
+
+    info = analizar_audio_wav(audio_bytes)
+    if info.get("is_wav"):
+        duration = info.get("duration_seconds") or 0.0
+        rms_ratio = info.get("rms_ratio")
+
+        if duration < MIN_AUDIO_DURATION_SECONDS:
+            return (
+                False,
+                f"El audio dura {duration:.1f} s. Graba al menos {MIN_AUDIO_DURATION_SECONDS:.0f} segundo con voz clara.",
+                info,
+            )
+
+        if rms_ratio is not None and rms_ratio < MIN_AUDIO_RMS_RATIO:
+            return (
+                False,
+                "El audio parece estar en silencio o con volumen muy bajo. Revisa permisos del micrófono y graba de nuevo.",
+                info,
+            )
+
+    return True, "", info
+
+
 def transcribir_audio(audio_value) -> str:
-    """Transcribe audio capturado desde el micrófono con Whisper API de OpenAI."""
+    """Transcribe audio capturado desde micrófono con la API de OpenAI."""
     if audio_value is None:
         return ""
 
@@ -150,12 +253,20 @@ def transcribir_audio(audio_value) -> str:
         return ""
 
     audio_bytes = _audio_to_bytes(audio_value)
-    if not audio_bytes:
+    audio_ok, audio_msg, audio_info = validar_audio_para_transcripcion(audio_bytes)
+
+    if audio_info.get("is_wav"):
+        duration = audio_info.get("duration_seconds")
+        rms_ratio = audio_info.get("rms_ratio")
+        if duration is not None:
+            nivel = "no disponible" if rms_ratio is None else f"{rms_ratio:.4f}"
+            st.caption(f"Audio detectado: {duration:.1f} s · nivel RMS relativo: {nivel}")
+
+    if not audio_ok:
+        st.warning(audio_msg)
         return ""
 
-    # st.audio_input entrega audio/wav. Se usa .wav para compatibilidad con Whisper.
     suffix = Path(getattr(audio_value, "name", "audio.wav")).suffix or ".wav"
-
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
@@ -166,11 +277,29 @@ def transcribir_audio(audio_value) -> str:
         client = OpenAI(api_key=api_key)
         with open(tmp_path, "rb") as f:
             transcription = client.audio.transcriptions.create(
-                model="whisper-1",
+                model=TRANSCRIPTION_MODEL,
                 file=f,
                 language="es",
+                temperature=0,
+                prompt=(
+                    "Transcribe únicamente voz hablada en español. "
+                    "Si el audio está en silencio, no contiene voz clara o solo hay ruido, "
+                    "no inventes subtítulos ni frases genéricas."
+                ),
             )
-        return transcription.text.strip()
+
+        text = getattr(transcription, "text", "") or ""
+        text = text.strip()
+
+        if es_transcripcion_espuria(text):
+            st.warning(
+                "La transcripción fue descartada porque parece generada por silencio, ruido "
+                "o ausencia de voz clara. Graba nuevamente hablando cerca del micrófono."
+            )
+            return ""
+
+        return text
+
     except Exception as exc:
         st.error(f"No fue posible transcribir el audio: {exc}")
         return ""
@@ -181,6 +310,9 @@ def transcribir_audio(audio_value) -> str:
             pass
 
 
+# -----------------------------------------------------------------------------
+# Utilidades de ejecución multiagente
+# -----------------------------------------------------------------------------
 def ejecutar_consulta(
     *,
     user_text: str,
@@ -237,7 +369,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 # -----------------------------------------------------------------------------
 # Sidebar de configuración
 # -----------------------------------------------------------------------------
@@ -281,6 +412,7 @@ with st.sidebar:
     rag_ok = RAG_STORE_DIR.exists() and any(RAG_STORE_DIR.iterdir())
 
     st.write("**OpenAI API key:**", "✅ configurada" if key_ok else "⚠️ no configurada")
+    st.write("**Modelo transcripción:**", TRANSCRIPTION_MODEL)
     st.write("**MCP runtime:**", "stdio MCP" if USE_MCP_SERVER else "dispatcher local compatible")
     st.write("**RAG store:**", "✅ detectado" if rag_ok else "⚠️ no indexado")
 
@@ -293,15 +425,12 @@ with st.sidebar:
         current_client = next(c for c in clients if c["id"] == client_id)
         st.json(current_client)
 
-
-# Estado de chat separado por cliente
+# -----------------------------------------------------------------------------
+# Estado de sesión
+# -----------------------------------------------------------------------------
 if state_key not in st.session_state:
     st.session_state[state_key] = []
 
-# Estado interno para la entrada por voz.
-# Importante: no usamos la misma key del widget text_area para guardar/modificar
-# manualmente la transcripción, porque Streamlit no permite modificar
-# st.session_state[<widget_key>] después de instanciar el widget.
 voice_draft_key = f"voice_draft_{client_id}"
 audio_hash_key = f"last_audio_hash_{client_id}"
 voice_editor_version_key = f"voice_editor_version_{client_id}"
@@ -313,7 +442,6 @@ if audio_hash_key not in st.session_state:
 if voice_editor_version_key not in st.session_state:
     st.session_state[voice_editor_version_key] = 0
 
-
 # -----------------------------------------------------------------------------
 # Layout principal
 # -----------------------------------------------------------------------------
@@ -324,7 +452,7 @@ with right_col:
     st.markdown(
         """
         <div class="soft-note">
-            Graba la consulta desde el micrófono del dispositivo. Al terminar, el audio se transcribe y puedes editarlo antes de enviarlo.
+            Graba la consulta desde el micrófono del dispositivo. Habla al menos 1 segundo, cerca del micrófono y revisa que el navegador tenga permisos de audio.
         </div>
         """,
         unsafe_allow_html=True,
@@ -346,12 +474,13 @@ with right_col:
             with st.spinner("Transcribiendo audio..."):
                 transcript = transcribir_audio(mic_audio)
             st.session_state[audio_hash_key] = audio_hash
+
             if transcript:
                 st.session_state[voice_draft_key] = transcript
-                # Cambiamos la key efectiva del editor para que el valor nuevo
-                # aparezca sin modificar directamente la key de un widget ya creado.
                 st.session_state[voice_editor_version_key] += 1
                 st.success("Audio transcrito correctamente.")
+            else:
+                st.info("No se obtuvo texto útil del audio. Intenta grabar de nuevo con voz más clara.")
 
     edited_voice_text = st.text_area(
         "Texto transcrito editable",
@@ -387,7 +516,6 @@ with right_col:
     else:
         st.caption("Memoria desactivada para esta ejecución.")
 
-
 with left_col:
     st.subheader(f"Chat con {selected_label}")
 
@@ -408,6 +536,7 @@ with left_col:
         st.session_state[voice_draft_key] = ""
         st.session_state[voice_editor_version_key] += 1
         st.rerun()
+
     prompt = st.chat_input("Escribe tu consulta al sistema multiagente...")
     if prompt:
         ejecutar_consulta(
