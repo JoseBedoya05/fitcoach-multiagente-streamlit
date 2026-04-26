@@ -10,6 +10,7 @@ import streamlit as st
 # -----------------------------------------------------------------------------
 # Configuración inicial
 # -----------------------------------------------------------------------------
+# Versión corregida: evita modificar st.session_state de widgets ya instanciados.
 # Permite leer OPENAI_API_KEY y LLM_MODEL desde Streamlit Cloud secrets.
 try:
     if "OPENAI_API_KEY" in st.secrets and not os.getenv("OPENAI_API_KEY"):
@@ -297,13 +298,20 @@ with st.sidebar:
 if state_key not in st.session_state:
     st.session_state[state_key] = []
 
-voice_text_key = f"voice_text_{client_id}"
+# Estado interno para la entrada por voz.
+# Importante: no usamos la misma key del widget text_area para guardar/modificar
+# manualmente la transcripción, porque Streamlit no permite modificar
+# st.session_state[<widget_key>] después de instanciar el widget.
+voice_draft_key = f"voice_draft_{client_id}"
 audio_hash_key = f"last_audio_hash_{client_id}"
+voice_editor_version_key = f"voice_editor_version_{client_id}"
 
-if voice_text_key not in st.session_state:
-    st.session_state[voice_text_key] = ""
+if voice_draft_key not in st.session_state:
+    st.session_state[voice_draft_key] = ""
 if audio_hash_key not in st.session_state:
     st.session_state[audio_hash_key] = ""
+if voice_editor_version_key not in st.session_state:
+    st.session_state[voice_editor_version_key] = 0
 
 
 # -----------------------------------------------------------------------------
@@ -339,14 +347,18 @@ with right_col:
                 transcript = transcribir_audio(mic_audio)
             st.session_state[audio_hash_key] = audio_hash
             if transcript:
-                st.session_state[voice_text_key] = transcript
+                st.session_state[voice_draft_key] = transcript
+                # Cambiamos la key efectiva del editor para que el valor nuevo
+                # aparezca sin modificar directamente la key de un widget ya creado.
+                st.session_state[voice_editor_version_key] += 1
                 st.success("Audio transcrito correctamente.")
 
     edited_voice_text = st.text_area(
         "Texto transcrito editable",
+        value=st.session_state[voice_draft_key],
         height=160,
         placeholder="Aquí aparecerá la transcripción del audio...",
-        key=voice_text_key,
+        key=f"voice_editor_{client_id}_{st.session_state[voice_editor_version_key]}",
     )
 
     send_voice = st.button(
@@ -357,7 +369,8 @@ with right_col:
     )
 
     if st.button("Borrar transcripción", use_container_width=True):
-        st.session_state[voice_text_key] = ""
+        st.session_state[voice_draft_key] = ""
+        st.session_state[voice_editor_version_key] += 1
         st.rerun()
 
     st.divider()
@@ -392,7 +405,8 @@ with left_col:
             show_trace=show_trace,
             state_key=state_key,
         )
-        st.session_state[voice_text_key] = ""
+        st.session_state[voice_draft_key] = ""
+        st.session_state[voice_editor_version_key] += 1
         st.rerun()
     prompt = st.chat_input("Escribe tu consulta al sistema multiagente...")
     if prompt:
