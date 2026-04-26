@@ -1,0 +1,121 @@
+{
+  "sentadilla_goblet": {
+    "grupo": "piernas",
+    "nivel": "intermedio",
+    "impacto": "bajo",
+    "contraindicado": [
+      "rodilla_grave"
+    ]
+  },
+  "prensa_45": {
+    "grupo": "piernas",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "hip_thrust": {
+    "grupo": "gluteos",
+    "nivel": "intermedio",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "peso_muerto": {
+    "grupo": "espalda",
+    "nivel": "avanzado",
+    "impacto": "medio",
+    "contraindicado": [
+      "lumbar",
+      "post_cirugia"
+    ]
+  },
+  "remo_polea_baja": {
+    "grupo": "espalda",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "press_banca": {
+    "grupo": "pecho",
+    "nivel": "intermedio",
+    "impacto": "bajo",
+    "contraindicado": [
+      "hombro_agudo"
+    ]
+  },
+  "press_militar": {
+    "grupo": "hombro",
+    "nivel": "intermedio",
+    "impacto": "bajo",
+    "contraindicado": [
+      "hombro_agudo"
+    ]
+  },
+  "curl_biceps_mancuernas": {
+    "grupo": "brazos",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "extension_triceps_polea": {
+    "grupo": "brazos",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "plancha": {
+    "grupo": "core",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": [
+      "post_cirugia_abdominal_1-4sem"
+    ]
+  },
+  "eliptica": {
+    "grupo": "cardio",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "bicicleta_estatica": {
+    "grupo": "cardio",
+    "nivel": "principiante",
+    "impacto": "bajo",
+    "contraindicado": []
+  },
+  "caminadora_inclinada": {
+    "grupo": "cardio",
+    "nivel": "principiante",
+    "impacto": "medio",
+    "contraindicado": []
+  },
+  "burpee": {
+    "grupo": "full_body",
+    "nivel": "avanzado",
+    "impacto": "alto",
+    "contraindicado": [
+      "rodilla",
+      "post_cirugia"
+    ]
+  },
+  "saltos_caja": {
+    "grupo": "piernas",
+    "nivel": "avanzado",
+    "impacto": "alto",
+    "contraindicado": [
+      "rodilla",
+      "post_cirugia"
+    ]
+  },
+  "natacion_suave": {
+    "grupo": "full_body",
+    "nivel": "principiante",
+    "impacto": "nulo",
+    "contraindicado": []
+  },
+  "movilidad_articular": {
+    "grupo": "mobility",
+    "nivel": "principiante",
+    "impacto": "nulo",
+    "contraindicado": []
+  }
+}

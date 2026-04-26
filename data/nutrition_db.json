@@ -1,0 +1,43 @@
+{
+  "proteinas_g_por_kg": {
+    "mantenimiento": 1.2,
+    "hipertrofia": 1.8,
+    "perdida": 2.0,
+    "post_cirugia": 1.5
+  },
+  "kcal_ajuste_pct": {
+    "mantenimiento": 0,
+    "hipertrofia": 10,
+    "perdida": -20,
+    "post_cirugia": 0
+  },
+  "reparto_macros": {
+    "hipertrofia": {
+      "prot": 0.3,
+      "carb": 0.45,
+      "gras": 0.25
+    },
+    "perdida": {
+      "prot": 0.35,
+      "carb": 0.35,
+      "gras": 0.3
+    },
+    "mantenimiento": {
+      "prot": 0.25,
+      "carb": 0.45,
+      "gras": 0.3
+    },
+    "post_cirugia": {
+      "prot": 0.3,
+      "carb": 0.4,
+      "gras": 0.3
+    }
+  },
+  "hidratacion_ml_por_kg": 35,
+  "comidas_por_dia_recomendadas": {
+    "hipertrofia": 4,
+    "perdida": 3,
+    "mantenimiento": 3,
+    "post_cirugia": 4
+  }
+}

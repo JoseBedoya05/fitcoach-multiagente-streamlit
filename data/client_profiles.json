@@ -1,0 +1,74 @@
+[
+  {
+    "id": "C1",
+    "name": "Mariana",
+    "gender": "F",
+    "age": 25,
+    "height_cm": 165,
+    "weight_kg": 58,
+    "body_fat_pct": 22.0,
+    "category": "POST_CIRUGIA",
+    "goal": "Mantener medidas obtenidas tras lipo-escultura",
+    "consistency": "media",
+    "discipline": "media",
+    "weekly_frequency": 3,
+    "restrictions": [
+      "sin impacto las primeras 6 semanas",
+      "evitar abdominales con carga hasta la 4a semana",
+      "uso de prenda de compresion"
+    ],
+    "notes": "Post-operatorio de lipo-escultura en recuperacion. Datos iniciales estimados."
+  },
+  {
+    "id": "C2",
+    "name": "Andres",
+    "gender": "M",
+    "age": 29,
+    "height_cm": 180,
+    "weight_kg": 82,
+    "body_fat_pct": 14.9,
+    "category": "HIPERTROFIA",
+    "goal": "Aumentar masa muscular y lograr mayor definicion",
+    "consistency": "alta",
+    "discipline": "baja",
+    "weekly_frequency": 5,
+    "restrictions": [],
+    "notes": "Trabaja en oficina, entrena de noche. Plan simple y automatizado."
+  },
+  {
+    "id": "C3",
+    "name": "Jorge",
+    "gender": "M",
+    "age": 55,
+    "height_cm": 172,
+    "weight_kg": 95,
+    "body_fat_pct": 32.0,
+    "category": "BAJAR",
+    "goal": "Bajar de peso y mejorar condicion general",
+    "consistency": "sin_info",
+    "discipline": "sin_info",
+    "weekly_frequency": null,
+    "restrictions": [
+      "sin impacto en rodillas",
+      "inicio luego de vida sedentaria",
+      "recomendacion medica previa"
+    ],
+    "notes": "Llega por recomendacion medica. Peso, altura y % grasa deben confirmarse en la primera cita."
+  },
+  {
+    "id": "C4",
+    "name": "Valentina",
+    "gender": "F",
+    "age": 18,
+    "height_cm": 175,
+    "weight_kg": 50,
+    "body_fat_pct": 11.0,
+    "category": "HIPERTROFIA",
+    "goal": "Aumentar volumen muscular con progreso demostrable",
+    "consistency": "alta",
+    "discipline": "alta",
+    "weekly_frequency": 5,
+    "restrictions": [],
+    "notes": "Bajo peso y bajo musculo. Plan nutricional con superavit guiado."
+  }
+]

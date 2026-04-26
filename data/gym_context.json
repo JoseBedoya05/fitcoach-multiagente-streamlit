@@ -1,0 +1,69 @@
+{
+  "gym_name": "FitCoach AI",
+  "motto": "Entrenamiento personalizado respaldado por datos",
+  "specialties": [
+    "hipertrofia",
+    "perdida de peso",
+    "post-cirugia",
+    "rehabilitacion",
+    "acondicionamiento general"
+  ],
+  "topics": {
+    "entrenamiento": {
+      "name": "Entrenamiento y acondicionamiento fisico",
+      "keywords": [
+        "rutina",
+        "fuerza",
+        "hipertrofia",
+        "cardio",
+        "HIIT",
+        "series",
+        "repeticiones",
+        "progresion",
+        "periodizacion"
+      ],
+      "core_idea": "La progresion de cargas y la periodizacion son clave para resultados sostenibles."
+    },
+    "nutricion": {
+      "name": "Nutricion deportiva",
+      "keywords": [
+        "macronutrientes",
+        "proteina",
+        "carbohidratos",
+        "grasas",
+        "deficit",
+        "superavit",
+        "calorias",
+        "tdee",
+        "tmb"
+      ],
+      "core_idea": "El deficit o superavit calorico define la direccion; los macros definen la calidad."
+    },
+    "rendimiento": {
+      "name": "Analisis de rendimiento y seguimiento",
+      "keywords": [
+        "peso",
+        "imc",
+        "grasa",
+        "perimetros",
+        "seguimiento",
+        "progreso",
+        "medidas",
+        "antropometria"
+      ],
+      "core_idea": "Medir semanalmente peso, % grasa y fuerza permite ajustar el plan antes de estancarse."
+    },
+    "post_cirugia": {
+      "name": "Rehabilitacion post-cirugia",
+      "keywords": [
+        "lipo",
+        "liposuccion",
+        "recuperacion",
+        "cuidados",
+        "compresion",
+        "postoperatorio"
+      ],
+      "core_idea": "Ejercicio progresivo y de baja carga mecanica durante las primeras 6-8 semanas."
+    }
+  }
+}
