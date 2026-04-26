@@ -103,6 +103,41 @@ def _audio_to_bytes(audio_value) -> bytes:
     return audio_value.read()
 
 
+def capturar_audio_microfono(*, label: str, key: str, help_text: str = ""):
+    """
+    Captura audio desde el micrófono del navegador de forma compatible
+    con varias versiones de Streamlit.
+
+    - Streamlit reciente: st.audio_input(..., sample_rate=16000)
+    - Streamlit 1.39.x: st.experimental_audio_input(...)
+    - Versiones antiguas: muestra mensaje accionable sin romper la app
+    """
+    if hasattr(st, "audio_input"):
+        return st.audio_input(
+            label,
+            sample_rate=16000,
+            key=key,
+            help=help_text,
+        )
+
+    if hasattr(st, "experimental_audio_input"):
+        st.info(
+            "Tu versión de Streamlit usa `st.experimental_audio_input`. "
+            "La app seguirá funcionando, pero se recomienda actualizar Streamlit."
+        )
+        return st.experimental_audio_input(
+            label,
+            key=key,
+            help=help_text,
+        )
+
+    st.error(
+        "La versión instalada de Streamlit no soporta captura de audio desde micrófono. "
+        "Actualiza `streamlit` en requirements.txt, por ejemplo: `streamlit>=1.45.1`."
+    )
+    return None
+
+
 def transcribir_audio(audio_value) -> str:
     """Transcribe audio capturado desde el micrófono con Whisper API de OpenAI."""
     if audio_value is None:
@@ -287,11 +322,10 @@ with right_col:
         unsafe_allow_html=True,
     )
 
-    mic_audio = st.audio_input(
-        "Grabar consulta en español",
-        sample_rate=16000,
+    mic_audio = capturar_audio_microfono(
+        label="Grabar consulta en español",
         key=f"mic_audio_{client_id}",
-        help="Permite el acceso al micrófono en el navegador cuando Streamlit lo solicite.",
+        help_text="Permite el acceso al micrófono en el navegador cuando Streamlit lo solicite.",
     )
 
     if mic_audio is not None:
@@ -370,4 +404,3 @@ with left_col:
             use_memory=use_memory,
             show_trace=show_trace,
             state_key=state_key,
-        )
