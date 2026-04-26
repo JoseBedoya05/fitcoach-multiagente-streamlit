@@ -6,8 +6,8 @@ openai>=1.54.0
 python-dotenv==1.0.1
 
 # MCP
-mcp[cli]>=1.27.0
-nest_asyncio==1.6.0
+mcp>=1.27.0
+nest-asyncio==1.6.0
 
 # Data
 pandas==2.2.2
@@ -28,3 +28,7 @@ unstructured[md]>=0.15.0
 
 # Utilidades
 tqdm>=4.66.0
+
+
+chromadb==0.5.18
+sentence-transformers==3.2.1
